@@ -1,9 +1,9 @@
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Controls 2.12
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import QtQuick.Controls 2.15
 import QtQuick.Dialogs 1.3
-
-import QtCharts 2.3
+import QtQml 2.15
+import QtCharts 2.15
 
 Window {
     id: root
