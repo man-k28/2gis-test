@@ -1,6 +1,6 @@
 /*
  * \file PrimaryModelDetail.h
- * \copyright (C) 2021 Special Technological Center Ltd
+ * \copyright (C) 2021 
  * \author : Prokofev S.V.
  * \date : 18.08.2021
  */
