@@ -19,6 +19,7 @@ public:
     using ConstPtr = std::shared_ptr< const Word >;
 public:
     explicit Word(QString value);
+    explicit Word(QString value, quint64 count);
     void update() noexcept;
 public:
     QString value() const noexcept;

@@ -14,6 +14,14 @@ Word::Word(QString value)
 
 }
 
+Word::Word(QString value, quint64 count)
+    : QObject()
+    , m_value(std::move(value))
+    , m_count(std::move(count))
+{
+
+}
+
 void Word::update() noexcept
 {
     m_count++;

@@ -30,11 +30,15 @@ Window {
             spacing: 10
             ProgressBar {
                 id: progressBar
-                width: parent.width - tbLoad.width - maxWords.width - parent.spacing * 2
+                width: parent.width - tbLoad.width - maxWords.width - elapsedTime.width - parent.spacing * 3
                 to: 100
                 from: 0
                 anchors.verticalCenter: panel.verticalCenter
 
+            }
+            Label {
+                id: elapsedTime
+                anchors.verticalCenter: panel.verticalCenter
             }
 
             SpinBox {
@@ -65,8 +69,9 @@ Window {
             antialiasing: true
             Connections{
                 target: _2Gis_ModelsFacade.primaryModel
-                function onReady()
+                function onReady(millisecs)
                 {
+                    elapsedTime.text = qsTr("%1 мс").arg(millisecs)
                     series.clear()
                     var data = _2Gis_ModelsFacade.getData();
                     for(var i = 0; i < data.length; ++i) {

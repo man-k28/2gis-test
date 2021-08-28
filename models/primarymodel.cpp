@@ -68,57 +68,63 @@ QHash< int, QByteArray > PrimaryModel::roleNames() const noexcept
     return roles;
 }
 
-Word::Ptr PrimaryModel::add(const QString &word, Entry::Storage &storage) noexcept
+void PrimaryModel::add(const QString &word, TempStorage &storage) noexcept
 {
-    if ( word.isEmpty() )
-        return {};
-
-    auto iterator = std::lower_bound(
-                            storage.cbegin(), storage.cend(),
-                            word,
-                            []( const PrimaryModelDetail::Entry<Word>::Ptr & entry, const QString & value ) noexcept
-                            {
-                                return entry->get()->value() < value;
-                            }
-                    );
-    if( iterator != storage.end() && ( *iterator )->get()->value() == word )
-    {
-//        qCInfo( primaryModelLogger() ) << "Duplicated word:" << word;
-        (*iterator)->get()->update();
-        return nullptr;
+    if ( word.isEmpty() ) {
+        return;
     }
 
-    const auto position = std::distance( storage.cbegin(), iterator );
-//    beginInsertRows( {}, position, position );
+//    if ( storage.contains(word) )
+    storage[word] = storage.value(word) + 1;
 
-    iterator = storage.emplace( iterator, std::make_unique< Entry >( std::make_shared<Word>(std::move( word )) ) );
-    const auto & entry = *iterator;
 
-//    endInsertRows();
 
-    const QPersistentModelIndex modelIndex = createIndex( position, 0 );
-    entry->postInitialize( modelIndex );
-    auto wordInternal = entry->get();
-    connect(
-            wordInternal.get(), &Word::changed,
-            this, [ this, modelIndex, wordInternal ]()
-            {
-                assert( modelIndex.isValid() );
-                emit dataChanged( modelIndex, modelIndex );
-            }
-    );
+//    auto iterator = std::lower_bound(
+//                            storage.cbegin(), storage.cend(),
+//                            word,
+//                            []( const PrimaryModelDetail::Entry<Word>::Ptr & entry, const QString & value ) noexcept
+//                            {
+//                                return entry->get()->value() < value;
+//                            }
+//                    );
+//    if( iterator != storage.end() && ( *iterator )->get()->value() == word )
+//    {
+////        qCInfo( primaryModelLogger() ) << "Duplicated word:" << word;
+//        (*iterator)->get()->update();
+//        return nullptr;
+//    }
 
-    assert(
-            std::is_sorted(
-                    storage.cbegin(), storage.cend(),
-                    []( const decltype( m_entries )::value_type & lh, const decltype( m_entries )::value_type & rh ) noexcept
-                    {
-                        return lh->get()->value() < rh->get()->value();
-                    }
-             )
-    );
+//    const auto position = std::distance( storage.cbegin(), iterator );
+////    beginInsertRows( {}, position, position );
 
-    return wordInternal;
+//    iterator = storage.emplace( iterator, std::make_unique< Entry >( std::make_shared<Word>(std::move( word )) ) );
+//    const auto & entry = *iterator;
+
+////    endInsertRows();
+
+//    const QPersistentModelIndex modelIndex = createIndex( position, 0 );
+//    entry->postInitialize( modelIndex );
+//    auto wordInternal = entry->get();
+//    connect(
+//            wordInternal.get(), &Word::changed,
+//            this, [ this, modelIndex, wordInternal ]()
+//            {
+//                assert( modelIndex.isValid() );
+//                emit dataChanged( modelIndex, modelIndex );
+//            }
+//    );
+
+//    assert(
+//            std::is_sorted(
+//                    storage.cbegin(), storage.cend(),
+//                    []( const decltype( m_entries )::value_type & lh, const decltype( m_entries )::value_type & rh ) noexcept
+//                    {
+//                        return lh->get()->value() < rh->get()->value();
+//                    }
+//             )
+//    );
+
+//    return wordInternal;
 }
 
 void PrimaryModel::reload(const QUrl &url, const qint32 maxWords)
@@ -148,10 +154,10 @@ void PrimaryModel::reload(const QUrl &url, const qint32 maxWords)
 
                      endResetModel();
                      watcher->deleteLater();
-                     emit ready();
+                     emit ready(timer.elapsed());
                  }
              } );
-
+    timer.restart();
     const auto future = QtConcurrent::run(
         [this]( const QUrl &url ) noexcept {
             return parseDictionary( url );
@@ -177,18 +183,39 @@ PrimaryModelDetail::Entry<Word>::Storage PrimaryModel::parseDictionary(const QUr
 
     QTextStream finder(&inputFile);
 
+    TempStorage tempStorage;
+
     while(!finder.atEnd()) {
         auto line = finder.readLine();
         auto words = line.split(" ");
-        for( const auto &word : qAsConst(words) ) {
+        for( auto &word : qAsConst(words) ) {
             QRegExp regExp("\\w+");
-            QString replaced(word);
+            QString replaced(std::move(word));
             replaced.replace(QRegExp("[\\W_]+"), "");
             if (!regExp.exactMatch(replaced) )
                 continue;
-            add(replaced.toLower(), result);
+            add(replaced.toLower(), tempStorage);
         }
         emit progress(finder.pos() * 100 / inputFile.size());
+    }
+
+    auto keys = tempStorage.keys();
+
+    for( const auto &item : qAsConst(keys) ) {
+        auto iterator = result.emplace(result.cend(), std::make_unique< Entry >( std::make_shared<Word>(std::move(item), std::move(tempStorage.value(item)) )) );
+
+        const QPersistentModelIndex modelIndex = createIndex( result.size(), 0 );
+        const auto & entry = *iterator;
+        entry->postInitialize( modelIndex );
+        auto wordInternal = entry->get();
+        connect(
+                wordInternal.get(), &Word::changed,
+                this, [ this, modelIndex, wordInternal ]()
+                {
+                    assert( modelIndex.isValid() );
+                    emit dataChanged( modelIndex, modelIndex );
+                }
+        );
     }
     return result;
 }

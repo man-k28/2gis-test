@@ -9,6 +9,7 @@
 #include "primarymodeldetail.h"
 #include "word.h"
 #include <QJsonArray>
+#include <QElapsedTimer>
 
 namespace _2Gis {
 namespace Models {
@@ -21,7 +22,7 @@ class PrimaryModel final : public QAbstractListModel
     friend ProxyModel;
 public:
     using Entry = Models::PrimaryModelDetail::Entry< Word >;
-
+    using TempStorage = QMap<QString, quint64>;
     enum Role
     {
         WORD_ROLE = Qt::UserRole + 1,
@@ -36,15 +37,16 @@ private:
 public:
     QJsonArray getTop15() const noexcept;
 signals:
-    void ready();
+    void ready(quint64 elapsed);
     void progress(const double &value);
 public:
-    Word::Ptr add(const QString &word, Entry::Storage &storage) noexcept;
     void reload(const QUrl &url, const qint32 maxWords = 15);
 private:
+    void add(const QString &word, TempStorage &storage) noexcept;
     Entry::Storage parseDictionary(const QUrl &url);
 private:
     Entry::Storage m_entries;
+    QElapsedTimer timer;
 };
 }
 }
